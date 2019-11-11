@@ -1,6 +1,7 @@
 package org.thachpham.mention;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Typeface;
 import android.text.Editable;
 import android.text.Spannable;
@@ -9,9 +10,8 @@ import android.text.TextWatcher;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.widget.EditText;
-
-import com.thachpham.mention.R;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,6 +39,10 @@ public class MentionEditText extends AppCompatEditText {
 
     private ActionListener mActionListener;
 
+    // Attrs
+    private int mentionColor;
+    private int mentionStyle = Typeface.BOLD;
+
     private Context mContext;
 
     public MentionEditText(Context context) {
@@ -48,15 +52,29 @@ public class MentionEditText extends AppCompatEditText {
 
     public MentionEditText(Context context, AttributeSet attrs) {
         super(context, attrs);
+        setAttrs(attrs);
         init();
     }
 
     public MentionEditText(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
+        setAttrs(attrs);
         init();
     }
 
-    public void init() {
+    private void setAttrs(AttributeSet attrs) {
+        TypedArray a = getContext().obtainStyledAttributes(attrs, R.styleable.MentionEditText);
+        try {
+            mentionColor = a.getColor(R.styleable.MentionEditText_mentionColor, ContextCompat.getColor(getContext(), R.color.mention_color_default));
+            mentionStyle = a.getInt(R.styleable.MentionEditText_mentionStyle, Typeface.BOLD);
+            denotationCharacter = a.getString(R.styleable.MentionEditText_denotation);
+            if ("".equals(denotationCharacter)) denotationCharacter = "@";
+        } finally {
+            a.recycle();
+        }
+    }
+
+    private void init() {
         mMentions = new ArrayList<>();
 
         addTextChangedListener(new TextWatcher() {
@@ -70,7 +88,7 @@ public class MentionEditText extends AppCompatEditText {
                     preventCheckOpenMentionList = false;
                     return;
                 }
-                String message = mEditTextMessage.getText().toString();
+                String message = getText().toString();
                 switch (mState) {
                     case STATE_NONE:
                         if (message.length() == 0) {
@@ -89,7 +107,7 @@ public class MentionEditText extends AppCompatEditText {
                             } else {
                                 hideMentionList();
                             }
-                        } else if(start == 0) {
+                        } else if (start == 0) {
                             String lastWord = message.substring(0, 1);
                             if (lastWord.equals(String.format("%s", denotationCharacter))) {
                                 showMentionList(1);
@@ -99,7 +117,7 @@ public class MentionEditText extends AppCompatEditText {
                         }
                         break;
                     case STATE_SHOW_MENTION_LIST:
-                        int cursorIndex = mEditTextMessage.getSelectionStart();
+                        int cursorIndex = getSelectionStart();
                         if (cursorIndex == cursorBeginTextSearch - 1) {
                             hideMentionList();
                         } else if (cursorIndex >= cursorBeginTextSearch) {
@@ -129,19 +147,19 @@ public class MentionEditText extends AppCompatEditText {
                     preventActionAfterSetText = false;
                     return;
                 }
-                Mention mention = isThereMentionHere(mEditTextMessage.getSelectionStart());
+                Mention mention = isThereMentionHere(getSelectionStart());
                 if (after > count) {
                     if (mention != null) {
                         mentionWillBeDeleted = mention;
                         deleteMentionByAddingCharacter = true;
                     } else {
-                        changeListMentionInfoAfterAddCharacters(mEditTextMessage.getSelectionStart(), after - count);
+                        changeListMentionInfoAfterAddCharacters(getSelectionStart(), after - count);
                     }
                 } else if (after < count) {
                     if (mention != null) {
                         deleteMention(mention, false);
                     } else {
-                        changeListMentionInfoAfterDeleteCharacters(mEditTextMessage.getSelectionStart(), count - after);
+                        changeListMentionInfoAfterDeleteCharacters(getSelectionStart(), count - after);
                     }
                 }
             }
@@ -149,7 +167,7 @@ public class MentionEditText extends AppCompatEditText {
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
 //                Log.d(TAG, "aaaaa: start = " + start + ", count = " + count + ", before = " + before + ", s = " + s);
-//                Log.d("aaaa", "onTextChanged: cursor start = " + mEditTextMessage.getSelectionStart() + ", cursor end = " + mEditTextMessage.getSelectionEnd());
+//                Log.d("aaaa", "onTextChanged: cursor start = " + getSelectionStart() + ", cursor end = " + getSelectionEnd());
                 if (deleteMentionByAddingCharacter) {
                     deleteMentionByAddingCharacter = false;
                     if (mentionWillBeDeleted != null) {
@@ -169,11 +187,11 @@ public class MentionEditText extends AppCompatEditText {
                 if (reformatMessage) {
                     preventActionAfterSetText = true;
                     reformatMessage = false;
-                    setTextMessage(mEditTextMessage.getText().toString());
+                    setTextMessage(getText().toString());
                     try {
-                        mEditTextMessage.setSelection(cursorIndexForReformatMessage);
+                        setSelection(cursorIndexForReformatMessage);
                     } catch (Exception e) {
-                        mEditTextMessage.setSelection(mEditTextMessage.getText().toString().length());
+                        setSelection(getText().toString().length());
                     }
                 }
             }
@@ -183,12 +201,14 @@ public class MentionEditText extends AppCompatEditText {
     /**
      * Method add denotation "@name" to the message
      */
-    public void addMentionUser(MentionInput mentionInput) {
+    public void addMention(MentionInput mentionInput) {
         hideMentionList();
         preventActionAfterSetText = true;
         preventCheckOpenMentionList = true;
-        String currentMessage = mEditTextMessage.getText().toString();
-        int cursorPosition = mEditTextMessage.getSelectionStart();
+        String currentMessage = getText().toString();
+        Log.d("aaaa", "current message = " + currentMessage);
+
+        int cursorPosition = getSelectionStart();
         Mention mentionHere = isThereMentionHere(cursorPosition);
         if (mentionHere != null) {
             mMentions.remove(mentionHere);
@@ -210,43 +230,47 @@ public class MentionEditText extends AppCompatEditText {
         // plus 1 because mention text has not "@"
         changeListMentionInfoAfterAddCharacters(cursorBeginTextSearch, mention.getMentionText().length() - (cursorPosition - cursorBeginTextSearch) + MENTION_TAIL.length());
         mMentions.add(mention);
+
         setTextMessage(String.format("%s%s%s", currentMessage.substring(0, cursorBeginTextSearch), mention.getMentionText() + MENTION_TAIL, currentMessage.substring(cursorPosition)));
-        mEditTextMessage.setSelection(cursorBeginTextSearch + mention.getMentionText().length() + MENTION_TAIL.length());
+        setSelection(cursorBeginTextSearch + mention.getMentionText().length() + MENTION_TAIL.length());
     }
 
     public void addDenotation() {
+        if (mActionListener != null) {
+            mActionListener.onNeedOpenListMention();
+        }
         preventActionAfterSetText = true;
         preventCheckOpenMentionList = true;
         // TODO: case replace a string by a character
-        int cursorIndex = mEditTextMessage.getSelectionStart();
+        int cursorIndex = getSelectionStart();
         cursorBeginTextSearch = cursorIndex + 1;
         mState = STATE_SHOW_MENTION_LIST;
         Mention mentionHere = isThereMentionHere(cursorIndex);
         if (mentionHere != null) {
             mMentions.remove(mentionHere);
         }
-        int cursorEndIndex = mEditTextMessage.getSelectionEnd();
+        int cursorEndIndex = getSelectionEnd();
         int lengthChange = cursorEndIndex - cursorIndex + 1;
-        String message = mEditTextMessage.getText().toString();
+        String message = getText().toString();
         message = message.substring(0, cursorIndex) + denotationCharacter + message.substring(cursorEndIndex);
         changeListMentionInfoAfterDeleteCharacters(cursorIndex, lengthChange - 1);
         changeListMentionInfoAfterAddCharacters(cursorIndex, 1);
         setTextMessage(message);
-        mEditTextMessage.setSelection(cursorIndex + 1);
+        setSelection(cursorIndex + 1);
     }
 
     private void deleteMention(Mention mention, boolean deleteAllTextInMention) {
         preventActionAfterSetText = true;
         mMentions.remove(mention);
-        String message = mEditTextMessage.getText().toString();
+        String message = getText().toString();
         if (deleteAllTextInMention) {
-            changeListMentionInfoAfterDeleteCharacters(mEditTextMessage.getSelectionStart(), mention.getMentionText().length() + 1);
+            changeListMentionInfoAfterDeleteCharacters(getSelectionStart(), mention.getMentionText().length() + 1);
             setTextMessage(String.format("%s%s", message.substring(0, mention.getStartInMessage()), message.substring(mention.getEndInMessage() + 1)));
-            mEditTextMessage.setSelection(mention.getStartInMessage());
+            setSelection(mention.getStartInMessage());
         } else {
-            changeListMentionInfoAfterDeleteCharacters(mEditTextMessage.getSelectionStart(), 1);
+            changeListMentionInfoAfterDeleteCharacters(getSelectionStart(), 1);
             // Because this method be called before afterTextChanged called -> in that method, this flag enable to reset the text
-            cursorIndexForReformatMessage = mEditTextMessage.getSelectionStart() == 0 ? 0 : mEditTextMessage.getSelectionStart() - 1;
+            cursorIndexForReformatMessage = getSelectionStart() == 0 ? 0 : getSelectionStart() - 1;
             reformatMessage = true;
         }
 //        Log.d("aaaa", "delete mention start = " + mention.getStartInMessage() + ", end = " + mention.getEndInMessage());
@@ -254,18 +278,18 @@ public class MentionEditText extends AppCompatEditText {
 
     private void deleteMentionByAddingCharacter(Mention mention, String characterAdded) {
         preventActionAfterSetText = true;
-        changeListMentionInfoAfterAddCharacters(mEditTextMessage.getSelectionStart(), 1);
+        changeListMentionInfoAfterAddCharacters(getSelectionStart(), 1);
         if (!characterAdded.equals(" ")) {
             mMentions.remove(mention);
             reformatMessage = true;
             // Because this method be called before afterTextChanged called -> in that method, this flag enable to reset the text
-            cursorIndexForReformatMessage = mEditTextMessage.getSelectionStart();
+            cursorIndexForReformatMessage = getSelectionStart();
         }
     }
 
     private void logAllMentions(String a) {
         for (Mention mention : mMentions) {
-//            Log.d("aaaa", a + " ***** mention start = " + mention.getStartInMessage() + ", end = " + mention.getEndInMessage());
+            Log.d("aaaa", a + " ***** mention start = " + mention.getStartInMessage() + ", end = " + mention.getEndInMessage());
         }
     }
 
@@ -328,7 +352,7 @@ public class MentionEditText extends AppCompatEditText {
                 e.printStackTrace();
             }
         }
-        mEditTextMessage.setText(spannableString);
+        setText(spannableString);
     }
 
     public void setFormattedMessage(String fullMessage) {
@@ -338,7 +362,7 @@ public class MentionEditText extends AppCompatEditText {
     }
 
     public SpannableString getFormattedMessage() {
-        String text = mEditTextMessage.getText().toString();
+        String text = getText().toString();
         SpannableString spannableString = new SpannableString(text);
         for (Mention mention : mMentions) {
             try {
@@ -379,14 +403,11 @@ public class MentionEditText extends AppCompatEditText {
     }
 
     private void formatMention(SpannableString spannableString, int start, int end) {
+//        Log.d("aaaa", "formatMention: mMetion size = " + mMentions.size());
+//        logAllMentions("*******");
         Context context;
-        if (mEditTextMessage == null) {
-            context = mContext;
-        } else {
-            context = mEditTextMessage.getContext();
-        }
-        spannableString.setSpan(new ForegroundColorSpan(ContextCompat.getColor(context, R.color.blue)), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        spannableString.setSpan(new StyleSpan(Typeface.BOLD), start, end, 0);
+        spannableString.setSpan(new ForegroundColorSpan(mentionColor), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        spannableString.setSpan(new StyleSpan(mentionStyle), start, end, 0);
     }
 
     public void clearMentions() {

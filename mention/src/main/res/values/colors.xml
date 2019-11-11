@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="blue">#0000ff</color>
+    <color name="mention_color_default">#0fa0bd</color>
 </resources>
