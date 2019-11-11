@@ -1,4 +1,5 @@
 # Mention
+![Farmers Market Finder Demo](demo/demo.gif)
 
 A powerful Android library that provides highly-customizable widgets (with smart defaults) to easily add social-media-esque mention (aka tag) support to your app
 
