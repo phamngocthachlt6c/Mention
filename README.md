@@ -62,5 +62,5 @@ The `MentionsEditText` is a subclass of `EditText`. It contains extra functional
 Sample App
 ----------
 
-The ''Mention-sample'' app contains several examples of using the library. For more detailed information, see the documentation [here](spyglass-sample/README.md).
+The ''Mention-sample'' app contains several examples of using the library.
 
