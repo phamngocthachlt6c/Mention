@@ -1,8 +1,7 @@
 # Mention
+A powerful Android library that provides highly-customizable widgets (with smart defaults) to easily add social-media-esque mention (aka tag) support to your app
 
 ![Demo](demo.gif)
-
-A powerful Android library that provides highly-customizable widgets (with smart defaults) to easily add social-media-esque mention (aka tag) support to your app
 
 *For a broad overview, check out our [blog post](http://androidorion.com) at the LinkedIn engineering blog.*
 
