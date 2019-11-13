@@ -11,19 +11,19 @@ import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
 import android.util.AttributeSet;
 import android.util.Log;
-import android.widget.EditText;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatEditText;
 import androidx.core.content.ContextCompat;
 
 public class MentionEditText extends AppCompatEditText {
     private final int STATE_NONE = 0;
     private final int STATE_SHOW_MENTION_LIST = 1;
-    private EditText mEditTextMessage;
-    private String s = "";
     private String denotationCharacter = "@";
     private String MENTION_TAIL = " ";
     // This flag for prevent call methods in onBeforeTextChanged after set the text before
@@ -89,40 +89,33 @@ public class MentionEditText extends AppCompatEditText {
                     return;
                 }
                 String message = getText().toString();
+                int denotationIndex = getStartIndexOfDenotation();
+                int currentSelector = getSelectionEnd();
+
                 switch (mState) {
                     case STATE_NONE:
-                        if (message.length() == 0) {
+                        if (denotationIndex != -1 && isThereMentionHere(currentSelector) == null) {
+                            showMentionList(denotationIndex + 1);
+                            preventCheckOpenMentionList = true;
+                            if (mActionListener != null) {
+                                mActionListener.onSearchListMention(message.substring(denotationIndex + 1, currentSelector));
+                            }
+                        } else {
                             hideMentionList();
-                        } else if (message.length() == 1) {
-                            if (message.equals(denotationCharacter)) {
-                                showMentionList(1);
-                            } else {
-                                hideMentionList();
-                            }
-                        } else if (start != 0 && start < message.length()) {
-                            //start = 0 in first time callback called after move cursor to the new index => start need to be difference 0 => below param in substring method != -1
-                            String lastWord = message.substring(start - 1, start + 1);
-                            if (lastWord.equals(String.format(" %s", denotationCharacter)) || lastWord.equals(String.format("\n%s", denotationCharacter))) {
-                                showMentionList(start + 1);
-                            } else {
-                                hideMentionList();
-                            }
-                        } else if (start == 0) {
-                            String lastWord = message.substring(0, 1);
-                            if (lastWord.equals(String.format("%s", denotationCharacter))) {
-                                showMentionList(1);
-                            } else {
-                                hideMentionList();
-                            }
                         }
                         break;
                     case STATE_SHOW_MENTION_LIST:
-                        int cursorIndex = getSelectionStart();
-                        if (cursorIndex == cursorBeginTextSearch - 1) {
+                        if (denotationIndex == -1) {
                             hideMentionList();
-                        } else if (cursorIndex >= cursorBeginTextSearch) {
-                            if (mActionListener != null) {
-                                mActionListener.onSearchListMention(message.substring(cursorBeginTextSearch, cursorIndex));
+                        } else {
+                            if (currentSelector == cursorBeginTextSearch - 1) {
+                                hideMentionList();
+                            } else if (currentSelector >= denotationIndex) {
+                                if (mActionListener != null) {
+                                    if (!mActionListener.onSearchListMention(message.substring(denotationIndex + 1, currentSelector).toLowerCase())) {
+                                        hideMentionList();
+                                    }
+                                }
                             }
                         }
                         break;
@@ -236,12 +229,22 @@ public class MentionEditText extends AppCompatEditText {
     }
 
     public void addDenotation() {
-        if (mActionListener != null) {
+        if(mActionListener != null) {
             mActionListener.onNeedOpenListMention();
         }
+        String message = getText().toString();
+        if (message.length() > 0) {
+            int currentStartIndex = getSelectionStart();
+            String previousString = message.substring(currentStartIndex - 1, currentStartIndex);
+            if (!" ".equals(previousString))
+                addASpace();
+        }
+        addJustDenotation();
+    }
+
+    public void addJustDenotation() {
         preventActionAfterSetText = true;
         preventCheckOpenMentionList = true;
-        // TODO: case replace a string by a character
         int cursorIndex = getSelectionStart();
         cursorBeginTextSearch = cursorIndex + 1;
         mState = STATE_SHOW_MENTION_LIST;
@@ -257,6 +260,42 @@ public class MentionEditText extends AppCompatEditText {
         changeListMentionInfoAfterAddCharacters(cursorIndex, 1);
         setTextMessage(message);
         setSelection(cursorIndex + 1);
+    }
+
+    private void addASpace() {
+//        deleteMentionByAddingCharacter = false;
+        preventActionAfterSetText = true;
+        preventCheckOpenMentionList = true;
+        int cursorIndex = getSelectionStart();
+        cursorBeginTextSearch = cursorIndex + 1;
+        mState = STATE_SHOW_MENTION_LIST;
+        int cursorEndIndex = getSelectionEnd();
+        int lengthChange = cursorEndIndex - cursorIndex + 1;
+        String message = getText().toString();
+        message = message.substring(0, cursorIndex) + " " + message.substring(cursorEndIndex);
+        changeListMentionInfoAfterDeleteCharacters(cursorIndex, lengthChange - 1);
+        changeListMentionInfoAfterAddCharacters(cursorIndex, 1);
+        setTextMessage(message);
+        setSelection(cursorIndex + 1);
+    }
+
+    private int getStartIndexOfDenotation() {
+        String message = getText().toString();
+        int currentIndex = getSelectionStart() - 1;
+        for (int i = currentIndex; i >= 0; i--) {
+            if (isDenotation(String.valueOf(message.charAt(i)))) {
+                if (i == 0) {
+                    return i;
+                } else {
+                    if (" ".equals(String.valueOf(message.charAt(i - 1))) || "\n".equals(String.valueOf(message.charAt(i - 1)))) {
+                        return i;
+                    }
+                }
+                return -1;
+            }
+        }
+
+        return -1;
     }
 
     private void deleteMention(Mention mention, boolean deleteAllTextInMention) {
@@ -276,7 +315,7 @@ public class MentionEditText extends AppCompatEditText {
 //        Log.d("aaaa", "delete mention start = " + mention.getStartInMessage() + ", end = " + mention.getEndInMessage());
     }
 
-    private void deleteMentionByAddingCharacter(Mention mention, String characterAdded) {
+    private void deleteMentionByAddingCharacter(Mention mention, @NonNull String characterAdded) {
         preventActionAfterSetText = true;
         changeListMentionInfoAfterAddCharacters(getSelectionStart(), 1);
         if (!characterAdded.equals(" ")) {
@@ -289,10 +328,11 @@ public class MentionEditText extends AppCompatEditText {
 
     private void logAllMentions(String a) {
         for (Mention mention : mMentions) {
-            Log.d("aaaa", a + " ***** mention start = " + mention.getStartInMessage() + ", end = " + mention.getEndInMessage());
+//            Log.d("aaaa", a + " ***** mention start = " + mention.getStartInMessage() + ", end = " + mention.getEndInMessage());
         }
     }
 
+    @Nullable
     private Mention isThereMentionHere(int cursorIndex) {
 //        Log.d("aaaa", "isThereMentionHere: cursor = " + cursorIndex);
         for (Mention mention : mMentions) {
@@ -323,7 +363,7 @@ public class MentionEditText extends AppCompatEditText {
         logAllMentions("when add character");
     }
 
-    private void changeListMentionInfoAfterAddMention(int cursorIndex, Mention newAddedMention) {
+    private void changeListMentionInfoAfterAddMention(int cursorIndex, @NonNull Mention newAddedMention) {
 //        Log.d("aaaa", "changeListMentionInfoAfterAddMention: cursor index = " + cursorIndex);
         int numberOfAddedCharacter = newAddedMention.getEndInMessage() - newAddedMention.getStartInMessage() + MENTION_TAIL.length();
 //        Log.d("aaaa", "changeListMentionInfoAfterAddMention: numberOfAddedCharacter = " + numberOfAddedCharacter);
@@ -402,6 +442,8 @@ public class MentionEditText extends AppCompatEditText {
         return mMentions.size() > 0;
     }
 
+    private MentionSort mentionSort = new MentionSort();
+
     private void formatMention(SpannableString spannableString, int start, int end) {
 //        Log.d("aaaa", "formatMention: mMetion size = " + mMentions.size());
 //        logAllMentions("*******");
@@ -410,13 +452,24 @@ public class MentionEditText extends AppCompatEditText {
         spannableString.setSpan(new StyleSpan(mentionStyle), start, end, 0);
     }
 
-    public void clearMentions() {
-        mMentions.clear();
+    private boolean isDenotation(String symbol) {
+        return denotationCharacter.equals(symbol);
     }
 
-    public void setMentions(List<Mention> mentions) {
-        mMentions.clear();
-        mMentions.addAll(mentions);
+    private boolean isDenotationWithSpace(String compareString) {
+        return (" " + denotationCharacter).equals(compareString);
+    }
+
+    private boolean isDenotationWithBreak(String compareString) {
+        return ("\n" + denotationCharacter).equals(compareString);
+    }
+
+    private class MentionSort implements Comparator<Mention> {
+
+        @Override
+        public int compare(@NonNull Mention o1, @NonNull Mention o2) {
+            return o1.getStartInMessage() - o2.getStartInMessage();
+        }
     }
 
     public interface ActionListener {
@@ -424,6 +477,12 @@ public class MentionEditText extends AppCompatEditText {
 
         void onNeedCloseListMention();
 
-        void onSearchListMention(String keyword);
+        /**
+         * Callback method for searching by keyword
+         *
+         * @param keyword
+         * @return true if result found, false if result empty
+         */
+        boolean onSearchListMention(String keyword);
     }
 }

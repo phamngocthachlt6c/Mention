@@ -62,21 +62,22 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onSearchListMention(String keyword) {
+            public boolean onSearchListMention(String keyword) {
                 users.clear();
                 if (keyword.equals("")) {
                     users.addAll(Arrays.asList(USERS));
                 } else {
                     for (User user : USERS) {
-                        if (keyword.length() > user.getName().length()) {
+                        if (keyword.length() >= user.getName().length()) {
                             continue;
                         }
                         String compareString = user.getName().substring(0, keyword.length()).toLowerCase();
-                        if (compareString.equals(keyword))
+                        if (compareString.equals(keyword.toLowerCase()))
                             users.add(user);
                     }
                 }
                 adapter.notifyDataSetChanged();
+                return !users.isEmpty();
             }
         });
 
