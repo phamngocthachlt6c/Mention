@@ -96,9 +96,10 @@ public class MentionEditText extends AppCompatEditText {
                     case STATE_NONE:
                         if (denotationIndex != -1 && isThereMentionHere(currentSelector) == null) {
                             showMentionList(denotationIndex + 1);
-                            preventCheckOpenMentionList = true;
                             if (mActionListener != null) {
-                                mActionListener.onSearchListMention(message.substring(denotationIndex + 1, currentSelector));
+                                if(!mActionListener.onSearchListMention(message.substring(denotationIndex + 1, currentSelector))) {
+                                    hideMentionList();
+                                }
                             }
                         } else {
                             hideMentionList();
@@ -180,6 +181,7 @@ public class MentionEditText extends AppCompatEditText {
                 if (reformatMessage) {
                     preventActionAfterSetText = true;
                     reformatMessage = false;
+                    preventCheckOpenMentionList = true;
                     setTextMessage(getText().toString());
                     try {
                         setSelection(cursorIndexForReformatMessage);

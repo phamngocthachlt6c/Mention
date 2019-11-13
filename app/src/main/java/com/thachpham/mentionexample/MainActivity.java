@@ -64,11 +64,11 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public boolean onSearchListMention(String keyword) {
                 users.clear();
-                if (keyword.equals("")) {
+                if (keyword.length() == 0) {
                     users.addAll(Arrays.asList(USERS));
                 } else {
                     for (User user : USERS) {
-                        if (keyword.length() >= user.getName().length()) {
+                        if (keyword.length() > user.getName().length()) {
                             continue;
                         }
                         String compareString = user.getName().substring(0, keyword.length()).toLowerCase();
