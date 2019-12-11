@@ -43,12 +43,6 @@ For more information about implementation and configuration options, see the doc
 
 If the input being inspected by the tokenizer is currently valid, it will generate a `QueryToken` containing the keywords that will ultimately be used to generate suggestions.
 
-### Suggestions
-
-Once the tokenizer has generated a valid `QueryToken`, Mention must now determine which suggestions to display using that token. It will call an implementation of `QueryTokenReceiver`. This is the only interface you are required to implement to use Mention. This interface defines one method that takes in the generated `QueryToken`. Your app can then use the token to query data from any number of data sources (i.e. servers, databases, caches, etc.) asynchronously. The function must return a list of strings, where each string is as an identifier for one of the data sources used for the given `QueryToken`. Each data source must then call the `SuggestionsResultListener` with the resulting suggestions and the same string identifier representing the data source for the suggestions.
-
-As the suggestions come in from multiple data sources, the suggestions must be displayed. If you use the `RichEditorView`, the suggestions will be displayed via a default view without any special ordering. You may customize the view and the order of its suggestions by providing your own implementation of `SuggestionsListBuilder`. If you are using the `MentionsEditText`, you will need to implement your own `SuggestionsResultListener` and use the given suggestions to build your own views (typically using either a `ListView`, `GridView`, or more recently, a `RecyclerView`). When a suggestion is selected, you will also need to call the `insertMention` method on the `MentionsEditText` with the suggestion to insert as a mention.
-
 ### Mentions
 
 All mentions that Mention insert must be a subclass of the `MentionSpan`. By default, you can easily tweak how your mentions appear (i.e. highlight and text colors). Additionally, you may alter how they behave when they are deleted via multi-stage deletions. We use this extensively in the LinkedIn app to allow users to delete only the last name of a mentioned member (leaving just the first name).
